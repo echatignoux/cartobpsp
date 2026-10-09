@@ -1,4 +1,3 @@
-
 db_path <- system.file("extdata", "cartobpsp.duckdb", package = "cartobpsp")
 db_path <- "./inst/extdata/cartobpsp.duckdb"
 
