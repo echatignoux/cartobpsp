@@ -151,7 +151,7 @@ build_popups_fast <- function(sub_df, sir_sub) {
   prob_txt <- ifelse(
     is.na(df_merged$prob), 
     "-", 
-    sprintf("P(&theta; &ne; 1) = %.2f", df_merged$prob)
+    sprintf("P<sub>d</sub>(&theta; ) = %.2f", df_merged$prob)
   )
 
   # 4. Assemblage final avec bloc gris épuré (texte fluide)
@@ -208,7 +208,7 @@ build_popups_fast <- function(sub_df, sir_sub = NULL) {
            </td>
          </tr>
          <tr>
-           <td style='color: #718096; padding: 2px 0;'>P(&theta; &ne; 1) :</td>
+           <td style='color: #718096; padding: 2px 0;'>P<sub>d</sub>(&theta; ) :</td>
            <td style='text-align: right; font-weight: 600; padding: 2px 0;'>%.2f</td>
          </tr>
        </table>
@@ -241,7 +241,7 @@ build_labels_fast <- function(sub_sf) {
   prob_txt <- ifelse(
     is.na(sub_sf$prob),
     "-",
-    sprintf("P(&theta; &ne; 1) = %.2f", sub_sf$prob)
+    sprintf("P<sub>d</sub>(&theta; ) = %.2f", sub_sf$prob)
   )
 
   # 4. Assemblage HTML léger

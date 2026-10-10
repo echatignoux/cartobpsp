@@ -76,7 +76,7 @@ app_server <- function(input, output, session) {
       )
       
       render_html_legend(
-        title = htmltools::HTML("P(&theta; &ne; 1)"),
+        title = htmltools::HTML("<b>P<sub>d</sub>(&theta;)</b>"),
         palette = pal_proba,
         domain = c(0, 1),
         ticks = c(0.5, 0.7, 0.8, 0.9, 0.95, 1.0),

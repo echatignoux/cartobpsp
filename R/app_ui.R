@@ -66,27 +66,36 @@ app_ui <- function() {
         }
       "))
     ),
-
     sidebar = bslib::sidebar(
       width = 340,
-      ## title = "Configuration",
+      ## bslib::accordion(
+      ##   open = FALSE,
+      ##   bslib::accordion_panel(
+      ##     title = "Définitions",
+      ##     icon = shiny::icon("book"),
+      ##     tags$ul(
+      ##       tags$li(tags$strong(htmltools::HTML("&theta;")), " : risque de cancer de la zone géographique, ajusté sur l'âge, par rapport à la moyenne des zones (référence = 1)."),
+      ##       tags$li(tags$strong(htmltools::HTML("P<sub>d</sub>(&theta;)")), " : Probabilité de direction (", htmltools::HTML("max(P(&theta; > 1), P(&theta; < 1)) ), variant de 0.5 (distribution de &theta; également répartie autour de 1) à 1.0 (distribution postérieure de &theta; ne contient pas 1)."))
+      ##     )
+      ##   )
+      ## ),
       shiny::selectInput(
         inputId = "sel_cancer", 
-        label = "Localisation :", 
+        label = "Localisation ", 
         choices = localisations,
         selected = 1
       ),
       
       shiny::radioButtons(
         inputId = "sel_sex", 
-        label = "Sexe :", 
+        label = "Sexe ", 
         choices = c("Hommes" = 1, "Femmes" = 2),
         selected = 1,
         inline = 1
       ),
       shiny::radioButtons(
         inputId = "sel_indic", 
-        label = "Incidence ou proxy :", 
+        label = "Incidence ou proxy ", 
         choices = indic_choices,
         selected = indic_choices[1],
         inline = 1
@@ -94,21 +103,42 @@ app_ui <- function() {
 
       shiny::radioButtons(
         inputId = "sel_prox", 
-        label = "Proxy :", 
+        label = "Proxy ", 
         choices = prox_choices,
         selected = prox_choices[1],
         inline = 1
       ),
-      
       shiny::radioButtons(
         inputId = "sel_var",
-        label = "Indicateur à afficher :",
-        choices = c(
-          "Moyenne" = "pm",
-          "Probabilité" = "prob"
+        label = div(
+          class = "d-flex align-items-center justify-content-between",
+          "Indicateur  ",
+          bslib::tooltip(
+            shiny::icon("circle-question", class = "text-muted cursor-pointer"),
+            # Contenu enrichi avec une largeur forcée (ex: 320px)
+            htmltools::tags$div(
+              style = "max-width: 600px; text-align: left; padding: 4px;",
+              htmltools::tags$p(
+                class = "mb-2", 
+                htmltools::HTML("<b>&theta;</b> : Risque de cancer ajusté sur l'âge, par rapport à la moyenne des zones (référence = 1).")
+              ),
+              htmltools::tags$p(
+                class = "mb-0", 
+                htmltools::HTML("<b>P<sub>d</sub>(&theta;)</b> : probabilité de détection - max(P(&theta; > 1), P(&theta; < 1)), variant de 0.5 (distribution postérieure de &theta; également répartie autour de 1) à 1.0 (distribution postérieure de &theta; ne contient pas 1).")
+              )
+            ),
+            # Options Bootstrap pour accepter le HTML et styler le fond en gris clair
+            options = list(
+              html = TRUE,
+              # Utilisation des classes Bootstrap pour un fond gris clair élégant
+              template = '<div class="tooltip" role="tooltip"><div class="tooltip-arrow"></div><div class="tooltip-inner bg-light text-dark border shadow-sm" style="max-width: 500px; text-align: left;"></div></div>'
+            )
+          )
         ),
-        selected = "pm",
-        inline = 1
+        choices = c("Risque - θ" = "pm", 
+                    "Probabilité - Pd(θ)" = "prob"),
+      selected = "pm",
+        inline = TRUE
       ),
       ## shiny::hr(),
       # 2. Table réductible des paramètres du modèle (ALD, PMSI, AUP)
