@@ -7,6 +7,11 @@
 #' @export
 app_ui <- function() {
 
+  localisations <- .pkg_env$localisations 
+  sexe_choices  <- .pkg_env$sexe_choices
+  indic_choices <- .pkg_env$indic_choices
+  prox_choices  <- .pkg_env$prox_choices 
+  
   bslib::page_sidebar(
     title = "Cartographie d'incidence des cancers",
     shinyjs::useShinyjs(),
@@ -117,14 +122,17 @@ app_ui <- function() {
 
       ## shiny::hr(),
       # Légende HTML personnalisée si nécessaire
-      shiny::uiOutput("ui_legend_box")
+      shiny::uiOutput("ui_legend_box"),
+      waiter::use_waiter()
       
     ),
     
     # Zone principale : carte Leaflet
     bslib::card(
       full_screen = TRUE,
-      style = "padding: 0;", # Supprime les marges internes autour de la carte
+      style = "padding: 0;",
+      # Ajout d'un id à la card pour piloter son état de chargement si besoin, 
+      # ou utilisation directe du output de la carte
       leaflet::leafletOutput("map_incidence", height = "100%")
     )
   )

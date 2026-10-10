@@ -1,3 +1,7 @@
 ^data-raw$
 ^build_pack\.R$
 ^dev_server\.R$
+^app_global\.R$
+^\./R/dev_server\.R$
+^\./R/app_global\.R$
+^LICENSE\.md$

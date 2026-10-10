@@ -1,10 +1,5 @@
 db_path <- system.file("extdata", "cartobpsp.duckdb", package = "cartobpsp")
 
-if (db_path == "") {
-  stop("Fichier DuckDB introuvable dans inst/extdata/")
-}
-
-
 con <- DBI::dbConnect(
   duckdb::duckdb(), 
   dbdir = db_path, 

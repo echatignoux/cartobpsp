@@ -21,28 +21,39 @@ pal_leg_sir <- leaflet::colorNumeric(
   na.color = "#E0E0E0"
 )
 
-## proba
+# Transformation pour passer de [0.5, 1] à [0, 1] avec un étirement non linéaire (p)
 trans_proba <- function(x, p = 3) {
-  val <- exp(x - 0.5)^p
-  val_min <- exp(-0.5)^p
-  val_max <- exp(0.5)^p
+  # x est désormais entre 0.5 et 1
+  x_clipped <- pmin(pmax(x, 0.5), 1.0)
+  
+  # On décale à partir de 0.5 (qui devient 0)
+  val <- exp(x_clipped - 0.5)^p
+  val_min <- exp(0)^p       # = 1 (quand x = 0.5)
+  val_max <- exp(0.5)^p     # (quand x = 1)
+  
   (val - val_min) / (val_max - val_min)
 }
 
+# Fonction inverse (utile si tu dois afficher des seuils sur la légende par exemple)
 inv_trans_proba <- function(y, p = 3) {
-  val_min <- exp(-0.5)^p
+  val_min <- 1
   val_max <- exp(0.5)^p
   val <- y * (val_max - val_min) + val_min
-  log(val^(1/p)) + 0.5
+  
+  # Résolution inverse de l'exponentielle
+  log(val) / p + 0.5
 }
 
-pal_leg_proba <- leaflet::colorNumeric(palette = "BuPu", domain = c(0, 1) )
+pal_leg_proba <- leaflet::colorNumeric(
+  palette = "BuPu", 
+  domain = c(0.5, 1)
+)
+
+# La fonction de coloration applique la transformation sur l'intervalle [0.5, 1]
 pal_proba <- function(x) {
-  # On applique la transformation puissance avant d'injecter dans colorNumeric
   pal_raw <- leaflet::colorNumeric(palette = "BuPu", domain = c(0, 1))
-  pal_raw(trans_proba(pmin(pmax(x, 0), 1), p = 3))
+  pal_raw(trans_proba(x, p = 3))
 }
-
 
 render_html_legend <- function(title, palette, domain, format_fun = identity, ticks = NULL, trans_fun = identity) {
   if (is.null(ticks)) {
@@ -133,13 +144,14 @@ build_popups_fast <- function(sub_df, sir_sub) {
   theta_txt <- ifelse(
     is.na(df_merged$pm) | is.na(df_merged$low) | is.na(df_merged$up),
     "-",
+
     sprintf("&theta; = %.3f [%.3f ; %.3f]", df_merged$pm, df_merged$low, df_merged$up)
   )
   
   prob_txt <- ifelse(
     is.na(df_merged$prob), 
     "-", 
-    sprintf("P(|&theta; - 1| &gt; 0) = %.2f", df_merged$prob)
+    sprintf("P(&theta; &ne; 1) = %.2f", df_merged$prob)
   )
 
   # 4. Assemblage final avec bloc gris épuré (texte fluide)
@@ -196,7 +208,7 @@ build_popups_fast <- function(sub_df, sir_sub = NULL) {
            </td>
          </tr>
          <tr>
-           <td style='color: #718096; padding: 2px 0;'>P(|&theta;-1| &gt; 0) :</td>
+           <td style='color: #718096; padding: 2px 0;'>P(&theta; &ne; 1) :</td>
            <td style='text-align: right; font-weight: 600; padding: 2px 0;'>%.2f</td>
          </tr>
        </table>
@@ -229,7 +241,7 @@ build_labels_fast <- function(sub_sf) {
   prob_txt <- ifelse(
     is.na(sub_sf$prob),
     "-",
-    sprintf("P(|&theta; - 1| &gt; 0) = %.2f", sub_sf$prob)
+    sprintf("P(&theta; &ne; 1) = %.2f", sub_sf$prob)
   )
 
   # 4. Assemblage HTML léger

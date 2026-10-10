@@ -1,11 +1,10 @@
 Package: cartobpsp
-Title: What the Package Does (One Line, Title Case)
+Title: "Cartographie de l'incidence des cancers"
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+    person("Edouard", "Chatignoux", , "edouard.chatignoux@santepubliquefrance.fr", role = c("aut", "cre"))
+Description: Appli shiny de cartographie interactive
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 8.0.0
@@ -18,4 +17,5 @@ Imports:
     magrittr,
     rlang,
     sf,
-    shiny
+    shiny,
+    waiter

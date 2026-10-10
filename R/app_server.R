@@ -13,40 +13,51 @@
 app_server <- function(input, output, session) {
   options(leaflet.preferCanvas = TRUE)
   # Accès lazy à la table DuckDB
-  dt_inc_tbl <- dplyr::tbl(con, "dt_inc")
-
-  # --- 1. Initialisation des choix de localisations au démarrage ---
-  # On met à jour les localisations sans recréer de boucle sur sel_sex
-  shiny::observeEvent(input$sel_sex, {
-    localisations_df <- loc_sexe %>%
-      dplyr::filter(sexe == !!input$sel_sex) %>% 
-      dplyr::arrange(loc)
+  dt_inc_tbl <- .pkg_env$dt_inc
+  dt_par <- .pkg_env$dt_par
+  shap_geo <- .pkg_env$shap_geo
+  shap_RA <- .pkg_env$shap_RA
+  loc_sexe <- .pkg_env$loc_sexe
+  
+  # --- Mise à jour des sexes disponibles en fonction de la localisation choisie ---
+  shiny::observeEvent(input$sel_cancer, {
+    req(input$sel_cancer)
     
-    loc_choices <- setNames(localisations_df$loc, localisations_df$lib)
+    # 1. Trouver les sexes valides pour ce cancer précis dans ta table de métadonnées
+    sexes_dispo <- loc_sexe %>%
+      dplyr::filter(loc == !!input$sel_cancer) %>%
+      dplyr::pull(sexe) %>%
+      unique()
     
-    # Conserve la sélection courante si elle existe toujours pour le sexe choisi
-    current_sel <- isolate(input$sel_cancer)
-    selected_val <- if (!is.null(current_sel) && current_sel %in% loc_choices) current_sel else loc_choices[1]
-
-    shiny::updateSelectInput(
-      session, 
-      "sel_cancer", 
-      choices = loc_choices, 
-      selected = selected_val
+    # 2. Définir l'ensemble de base et filtrer selon ce qui existe pour ce cancer
+    all_sexe_choices <- c("Homme" = 1, "Femme" = 2)
+    sexe_choices <- all_sexe_choices[all_sexe_choices %in% sexes_dispo]
+    
+    # 3. Conserver la sélection courante si elle est toujours dispo pour ce cancer, sinon prendre la 1ère
+    current_sex <- isolate(input$sel_sex)
+    selected_sex <- if (!is.null(current_sex) && current_sex %in% sexe_choices) current_sex else sexe_choices[1]
+    
+    # 4. Mettre à jour les boutons radio du sexe
+    shiny::updateRadioButtons(
+      session,
+      "sel_sex",
+      choices = sexe_choices,
+      selected = selected_sex,
+      inline = TRUE
     )
   }, ignoreInit = FALSE)
-
+  
   # --- 2. Légendes Leaflet ---
   output$ui_legend_box <- shiny::renderUI({
     shiny::req(input$sel_var)
 
     if (input$sel_var == "pm") {
       # --- Cas 1 : SIR (Echelle linéaire) ---
-      pal_sir <- leaflet::colorNumeric(
-        palette = "RdYlGn", 
-        domain = c(0.7, 1.3), 
-        reverse = TRUE
-      )
+      ## pal_sir <- leaflet::colorNumeric(
+      ##   palette = "RdYlGn", 
+      ##   domain = c(0.7, 1.3), 
+      ##   reverse = TRUE
+      ## )
       
       render_html_legend(
         title = "Risque θ",
@@ -65,7 +76,7 @@ app_server <- function(input, output, session) {
       )
       
       render_html_legend(
-        title = "P(|θ-1| > 0)",
+        title = htmltools::HTML("P(&theta; &ne; 1)"),
         palette = pal_proba,
         domain = c(0, 1),
         ticks = c(0.5, 0.7, 0.8, 0.9, 0.95, 1.0),
@@ -124,16 +135,17 @@ app_server <- function(input, output, session) {
 
   # Mise à jour réactive des polygones via leafletProxy
   shiny::observeEvent(filtered_data(), {
+
+    waiter::waiter_show(
+      id = "map_incidence", 
+      html = waiter::spin_fading_circles(), # ou spin_loaders(6)
+      color = "rgba(255, 255, 255, 0.7)"    # Fond semi-transparent élégant
+    )
+    # S'assure qu'il se masque quoiqu'il arrive à la fin du bloc
+    on.exit(waiter::waiter_hide("map_incidence"), add = TRUE)
+    
     df <- filtered_data()
     shiny::req(nrow(df) > 0)
-
-    sir_sub <- dt_sir %>% 
-      dplyr::filter(
-        loc == !!input$sel_cancer,
-        sexe == !!as.numeric(input$sel_sex),
-        prox == !!input$sel_prox) %>%
-      dplyr::collect()
-
     
     # Jointure spatiale avec ton objet SF (shap_geo doit être disponible dans le package)
     sub_sf <- shap_geo %>%
@@ -143,38 +155,42 @@ app_server <- function(input, output, session) {
     ra_sub <- shap_RA %>%
       dplyr::filter(loc == input$sel_cancer)
 
-    # Palette de couleurs adaptative
+# Palette de couleurs adaptative
     if (isTRUE(input$sel_var == "pm")) {
       pal_base <- pal_sir
-      pal_leg <-  leaflet::colorNumeric(palette = "RdYlGn", domain = c(0.7, 1.3), reverse = TRUE, na.color = "#E0E0E0" )
+      pal_leg <- leaflet::colorNumeric(palette = "RdYlGn", domain = c(0.7, 1.3), reverse = TRUE, na.color = "#E0E0E0")
       trans <- function(x) x
-      val_leg <- c(0.7,1.3)
-
+      val_leg <- c(0.7, 1.3)
+      
     } else {
       pal_base <- pal_proba
-      pal_leg <- leaflet::colorNumeric(palette = "BuPu", domain = c(0, 1) )
-      trans <- inv_trans_proba
-      val_leg <- c(0,1)
+      # Correction du domaine de la légende de 0.5 à 1
+      pal_leg <- leaflet::colorNumeric(palette = "BuPu", domain = c(0.5, 1))
+      
+      # Pour les probas, pal_proba gère déjà la transformation en interne.
+      # Donc la fonction de transformation externe doit être l'identité (ne rien faire).
+      trans <- function(x) x 
+      
+      val_leg <- c(0.5, 1)
     }
-    # Construction des tooltips au survol
-    ## labels <- build_labels_fast(sub_sf)
-    popups <- build_popups_fast(
-      sub_df = sub_sf
-    )
+
+    # Construction des popups
+    popups <- build_popups_fast(sub_df = sub_sf)
 
     # Mise à jour des couches Leaflet sans recharger le fond de carte
     leaflet::leafletProxy("map_incidence", data = sub_sf) %>%
       leaflet::clearShapes() %>%
       leaflet::clearControls() %>%
       leaflet::addPolygons(
+        stroke = TRUE,                 # <-- Désactive les contours
         group = "polys",
-        stroke = TRUE,
-        weight = 0.8,
-        color = "#ffffff",
-        fillColor = ~pal_base(trans(val)),
+        ## color = "#ffffff",
+        # On passe directement val, car pal_base (= pal_proba) applique déjà trans_proba en interne
+        fillColor = ~pal_base(val),
+        color = ~pal_base(val),
+        weight = 1,
         fillOpacity = 0.8,
         highlightOptions = leaflet::highlightOptions(weight = 2, color = "#333", bringToFront = TRUE),
-        ## label = labels,
         popup = popups
       ) %>%
       leaflet::addPolygons(

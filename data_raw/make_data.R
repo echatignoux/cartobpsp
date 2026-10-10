@@ -96,9 +96,46 @@ dt_sir <- dt_raw %>%
   mutate(sir=N/E) %>%
   collect()
 
+####'On rajoute les erreurs proxy  ---------------------------------------- 
+dt_e <- dt_inc %>%
+  select(loc,sexe,prox) %>%
+  unique() %>%
+  mutate(prox=factor(prox,
+                     levels=c("ald","pmsi","aup"),
+                     labels=c("p1","p2","p3")
+                     ) %>% as.character)
+
+dt_e %<>%
+  split(1:nrow(.)) %>% # On transforme chaque ligne en un petit objet
+  map_df(function(g) {
+    message("Calcul pour : ", g$loc, " - ", g$sexe, " - ", g$prox)
+    # On ne tire que ce groupe de la base
+    p_nu %>%
+      filter(loc == !!g$loc, sexe == !!g$sexe, prox == !!g$prox) %>%
+      mutate(e=nu_1/nu_2) %>%
+      select(-nu_1,-nu_2,-val_theta) %>% 
+      group_by(lib, loc, sexe, prox, geo) %>%
+      summarise(pm=mean(e),low=quantile(e,p=.025),up=quantile(e,p=.975),
+                prob = mean(as.numeric(e>1))) %>%
+      collect() %>%
+      mutate(comp="e",RA=TRUE)
+  }) %>%
+  unnest()
+
+dt_e %<>% 
+    mutate(prox=factor(prox,
+                     levels=c("p1","p2","p3"),
+                              labels=c("ald","pmsi","aup")
+                     ))
+
+
 ## On ne garde que le E qu'on ajoute à dt_inc
+dt_sir %<>% select(loc,sexe,prox,geo,E)
 dt_inc %<>%
-  left_join(dt_sir %>% select(loc,sexe,prox,geo,E))
+  select(lib,loc,sexe,prox,geo,RA,pm,low,up,prob,comp) %>% 
+  bind_rows(dt_e) %>% 
+  left_join(dt_sir)
+
 
 ###'Table de qualité des proxys  ==================================== 
 dt_par <- s_par %>%

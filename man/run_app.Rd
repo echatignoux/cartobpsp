@@ -13,7 +13,5 @@ run_app(...)
 Lancer l'application Shiny comprox
 }
 \examples{
-\textignore{
   comprox::run_app()
-}
 }

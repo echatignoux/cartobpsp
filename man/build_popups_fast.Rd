@@ -4,7 +4,7 @@
 \alias{build_popups_fast}
 \title{Génération rapide des popups HTML pour Leaflet}
 \usage{
-build_popups_fast(sub_df, sir_sub)
+build_popups_fast(sub_df, sir_sub = NULL)
 }
 \arguments{
 \item{sub_df}{Dataframe principal (sf) contenant les colonnes : geo, lib_geo (ou nom), pm, low, up, prob (ou p10)}
