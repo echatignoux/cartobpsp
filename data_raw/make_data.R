@@ -78,14 +78,13 @@ prob_post <-
 
 ####'Table incidende  ---------------------------------------- 
 dt_inc <- s_theta %>%
-  filter(comp=="theta_1") %>%
   collect() %>% 
   mutate(prox=factor(prox,
                      levels=c("ald","pmsi","aup"),
                               labels=c("ald","pmsi","aup")
                      )) %>%
-  filter(comp=="theta_1") %>%
-  left_join(  prob_post )
+  left_join(  prob_post ) %>%
+  mutate(comp=ifelse(comp=="theta_1","k","p"))
 
 ####'Table des sir  ---------------------------------------- 
 dt_sir <- dt_raw %>%
@@ -94,7 +93,32 @@ dt_sir <- dt_raw %>%
   mutate(E=pa*sum(N)/sum(pa)) %>%
   group_by(lib,loc,sexe,prox,geo) %>%
   summarise(across(c(E,N,pa),sum)) %>%
-  mutate(sir=N/E)
+  mutate(sir=N/E) %>%
+  collect()
+
+## On ne garde que le E qu'on ajoute à dt_inc
+dt_inc %<>%
+  left_join(dt_sir %>% select(loc,sexe,prox,geo,E))
+
+###'Table de qualité des proxys  ==================================== 
+dt_par <- s_par %>%
+  filter(str_detect(par,"s_[ec]|psi|kappa|b_sp"))  %>%
+  collect()
+
+dt_class <- dt_par %>% 
+  filter(str_detect(par,"s_[e]|kappa"))  %>%
+  select(loc,sexe,prox,par,pm) %>%
+  spread(par,pm) %>%
+  mutate(class=case_when(s_e<0.05 ~"A++",
+                         s_e>0.1 ~"B--",
+                         kappa>0.8~"A+",
+                         TRUE~"B-"
+                         )) %>%
+  select(loc,prox,sexe,class)
+
+dt_par %<>%
+  left_join(dt_class) %>%
+  select(lib:pm,sd,low,up,class)
 
 ####'Shape RA  ---------------------------------------- 
 shap_RA <- shap_geo %>%
@@ -114,10 +138,8 @@ con <-  ddbs_create_conn(dbdir = "./inst/extdata/cartobpsp.duckdb")
 ddbs_write_table(con, shap_RA %>% as_duckspatial_df(), name = "shap_RA",overwrite=T)
 ddbs_write_table(con, shap_geo %>% as_duckspatial_df(), name = "shap_geo",overwrite=T)
 dbWriteTable(con, "dt_inc", dt_inc %>% collect() , overwrite = TRUE)
-dbWriteTable(con, "dt_sir", dt_sir %>% collect() , overwrite = TRUE)
+dbWriteTable(con, "dt_par", dt_par , overwrite = TRUE)
 dbDisconnect(con, shutdown = TRUE)
 rm(con); gc()
-
-
 
 

@@ -1,1 +1,3 @@
-/inst/extdata/*.duckdb
+/dev/
+*.*~
+*.duckdb

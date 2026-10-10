@@ -1,14 +1,18 @@
 db_path <- system.file("extdata", "cartobpsp.duckdb", package = "cartobpsp")
-db_path <- "./inst/extdata/cartobpsp.duckdb"
 
 if (db_path == "") {
   stop("Fichier DuckDB introuvable dans inst/extdata/")
 }
 
 
-con <-  duckspatial::ddbs_create_conn(dbdir = db_path)
+con <- DBI::dbConnect(
+  duckdb::duckdb(), 
+  dbdir = db_path, 
+  read_only = TRUE
+)
+
 # Fermeture propre de la connexion à la fin de la session
-onStop(function() {
+shiny::onStop(function() {
   DBI::dbDisconnect(con, shutdown = TRUE)
   ## rm(con)
   gc()
@@ -17,7 +21,7 @@ onStop(function() {
 ####' Chargement et préparation des données ---------------------------------------- 
 # Charger les tables DuckDB (lazy evaluation)
 dt_inc <- dplyr::tbl(con, "dt_inc")
-dt_sir <- dplyr::tbl(con, "dt_sir")
+dt_par <- dplyr::tbl(con, "dt_par")
 shap_geo<-duckspatial::ddbs_read_table(con,"shap_geo")  %>%
   dplyr::collect()  
 shap_RA<-duckspatial::ddbs_read_table(con,"shap_RA")  %>%
@@ -25,22 +29,17 @@ shap_RA<-duckspatial::ddbs_read_table(con,"shap_RA")  %>%
   left_join(dt_inc %>% dplyr::collect() %>% dplyr::as_tibble() %>% dplyr::select(lib,loc) %>% unique())
 
 # Extraction unique des métadonnées pour l'UI
-sexes_par_cancer <- dt_inc %>% 
-  dplyr::select(loc, sexe) %>% 
+loc_sexe <- dt_inc %>% 
+  dplyr::select(lib, loc, sexe) %>% 
   dplyr::distinct() %>% 
   dplyr::collect() %>%
-  dplyr::arrange(loc, sexe) 
+  dplyr::arrange(loc,lib,  sexe) 
 
-df_loc <- dt_inc %>% 
-  dplyr::select(loc, lib) %>% 
-  dplyr::distinct() %>% 
-  dplyr::arrange(loc) %>% 
-  dplyr::collect()
-
-localisations <- setNames(df_loc$loc, df_loc$lib)
+localisations <- setNames(loc_sexe$loc %>% unique(),
+                          loc_sexe$lib %>% unique())
 
 sexe_choices <- setNames(c(1,2), c("Homme", "Femme"))
 
-indic_choices <- setNames(c("theta_1","theta_2"), c("Incidence", "Proxy"))
+indic_choices <- setNames(c("k","p"), c("Incidence", "Proxy"))
 
 prox_choices <- setNames( c("aup", "ald", "pmsi"),c("AUP","ALD","PMSI"))
